@@ -1,0 +1,7 @@
+apiVersion: fakemoon.github.io/v1alpha1
+kind: PostgresDB
+metadata:
+  name: example-postgresdb
+spec:
+  # Add fields here
+  size: 3
