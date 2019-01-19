@@ -2,8 +2,11 @@ package postgresdb
 
 import (
 	"context"
+	"strconv"
+	"strings"
 
 	fakemoonv1alpha1 "github.com/fakemoon/postgres-operator/pkg/apis/fakemoon/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,6 +21,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
+
+const DEFAULT_POSTGRES_VERSION = "10"
 
 var log = logf.Log.WithName("controller_postgresdb")
 
@@ -53,7 +58,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner PostgresDB
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+	err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &fakemoonv1alpha1.PostgresDB{},
 	})
@@ -99,54 +104,98 @@ func (r *ReconcilePostgresDB) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	// Define a new Pod object
-	pod := newPodForCR(instance)
-
-	// Set PostgresDB instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// Check if this Pod already exists
-	found := &corev1.Pod{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
+	// Check if the deployment already exists, if not create a new one
+	found := &appsv1.Deployment{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-		err = r.client.Create(context.TODO(), pod)
+		// Define a new deployment
+		dep := r.makeDeploymentForPostgres(instance)
+		reqLogger.Info("Creating a new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
+		err = r.client.Create(context.TODO(), dep)
 		if err != nil {
+			reqLogger.Error(err, "Failed to create new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
 			return reconcile.Result{}, err
 		}
-
-		// Pod created successfully - don't requeue
-		return reconcile.Result{}, nil
+		// Deployment created successfully - return and requeue
+		return reconcile.Result{Requeue: true}, nil
 	} else if err != nil {
+		reqLogger.Error(err, "Failed to get Deployment")
 		return reconcile.Result{}, err
 	}
-
-	// Pod already exists - don't requeue
-	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
-	return reconcile.Result{}, nil
 }
 
-// newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newPodForCR(cr *fakemoonv1alpha1.PostgresDB) *corev1.Pod {
-	labels := map[string]string{
-		"app": cr.Name,
+// makeDeploymentForPostgres returns a PostgresDB Deployment object
+func (r *ReconcilePostgresDB) makeDeploymentForPostgres(p *fakemoonv1alpha1.PostgresDB) *appsv1.Deployment {
+	ls := labelsForPostgres(p.Name)
+	version := p.Spec.PostgresVersion
+	imageName := "postgres"
+	if checkPostgresVersion(version) {
+		imageName += version
+	} else {
+		// using default
+		log.Info("Invalid spec postgres_version. Using default = 10")
+		imageName += DEFAULT_POSTGRES_VERSION
 	}
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name + "-pod",
-			Namespace: cr.Namespace,
-			Labels:    labels,
+
+	dep := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
 		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:    "busybox",
-					Image:   "busybox",
-					Command: []string{"sleep", "3600"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      p.Name,
+			Namespace: p.Namespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: 1,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: ls,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: ls,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Image:   imageName,
+						Name:    "postgres",
+						Command: []string{},
+						Ports: []corev1.ContainerPort{{
+							ContainerPort: 5432,
+							Name:          "postgres",
+						}},
+						Env:[]corev1.EnvVar{{
+							Name:"POSTGRES_PASSWORD",
+							Value:p.Spec.PostgresPassword,
+						}},
+					}},
 				},
 			},
 		},
+	}
+	// Set Memcached instance as the owner and controller
+	controllerutil.SetControllerReference(p, dep, r.scheme)
+	return dep
+}
+
+// labelsForMemcached returns the labels for selecting the resources
+// belonging to the given memcached CR name.
+func labelsForPostgres(name string) map[string]string {
+	return map[string]string{"app": "postgres", "postgres_cr": name}
+}
+
+// checkPostgresVersion returns true if version is a valid postgres version
+// as example, not precisely
+func checkPostgresVersion(version string) bool {
+	versionList := strings.Split(version, ".")
+	switch versionList[0] {
+	case "11" :
+		return true
+	case "10" :
+		return true
+	case "9" :
+		return true
+	default:
+		return false
 	}
 }
