@@ -16,7 +16,7 @@ spec:
       containers:
         - name: postgres-operator
           # Replace this with the built image name
-          image: REPLACE_IMAGE
+          image: fakemoon/postgres-operator:v0.0.5
           ports:
           - containerPort: 60000
             name: metrics

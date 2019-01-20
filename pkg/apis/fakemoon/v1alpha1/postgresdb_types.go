@@ -11,7 +11,10 @@ import (
 type PostgresDBSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	PostgresPassword string `json:"POSTGRES_PASSWORD"`
+	PostgresVersion string `json:"version"`
+	PostgresPassword string `json:"postgres_password"`
+	Storage string `json:"storage_size"`
+	StorageClass string `json:"storage_class"`
 }
 
 // PostgresDBStatus defines the observed state of PostgresDB

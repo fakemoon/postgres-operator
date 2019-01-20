@@ -4,4 +4,7 @@ metadata:
   name: example-postgresdb
 spec:
   # Add fields here
-  size: 3
+  version: "10.4"
+  postgres_password: "BYi32nRy66zX68PnKA"
+  storage_size: "10Gi"
+  storage_class: "do-block-storage"
