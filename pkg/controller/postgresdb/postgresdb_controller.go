@@ -184,7 +184,8 @@ func (r *ReconcilePostgresDB) makeStatefulSetForPostgres(p *fakemoonv1alpha1.Pos
 						}},
 						VolumeMounts:[]corev1.VolumeMount{{
 							Name:"postgres-data-vol",
-							MountPath:"/var/lib/postgresql/data",
+							MountPath:"/var/lib/postgresql",
+							SubPath:"data",
 						}},
 					}},
 				},

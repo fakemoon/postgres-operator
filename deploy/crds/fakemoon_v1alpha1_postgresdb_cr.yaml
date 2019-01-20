@@ -6,4 +6,5 @@ spec:
   # Add fields here
   version: "10.4"
   postgres_password: "BYi32nRy66zX68PnKA"
-  storage: "10Gi"
+  storage_size: "10Gi"
+  storage_class: "do-block-storage"
