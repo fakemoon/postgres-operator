@@ -14,6 +14,7 @@ type PostgresDBSpec struct {
 	PostgresVersion string `json:"version"`
 	PostgresPassword string `json:"postgres_password"`
 	Storage string `json:"storage_size"`
+	StorageClass string `json:"storage_class"`
 }
 
 // PostgresDBStatus defines the observed state of PostgresDB

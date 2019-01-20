@@ -2,7 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="e73948d8-cc5f-42a9-a56a-820c663a66b3" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/deploy/crds/fakemoon_v1alpha1_postgresdb_cr.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/crds/fakemoon_v1alpha1_postgresdb_cr.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/deploy/operator.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/operator.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pkg/controller/postgresdb/postgresdb_controller.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/controller/postgresdb/postgresdb_controller.go" afterDir="false" />
     </list>
@@ -49,8 +48,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/pkg/controller/postgresdb/postgresdb_controller.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="341">
-              <caret line="185" column="47" selection-start-line="185" selection-start-column="47" selection-end-line="185" selection-end-column="47" />
+            <state relative-caret-position="375">
+              <caret line="152" column="60" selection-start-line="152" selection-start-column="60" selection-end-line="152" selection-end-column="60" />
               <folding>
                 <element signature="e#20#707#0" expanded="true" />
               </folding>
@@ -312,8 +311,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/pkg/controller/postgresdb/postgresdb_controller.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="341">
-          <caret line="185" column="47" selection-start-line="185" selection-start-column="47" selection-end-line="185" selection-end-column="47" />
+        <state relative-caret-position="375">
+          <caret line="152" column="60" selection-start-line="152" selection-start-column="60" selection-end-line="152" selection-end-column="60" />
           <folding>
             <element signature="e#20#707#0" expanded="true" />
           </folding>

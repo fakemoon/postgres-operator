@@ -202,7 +202,7 @@ func (r *ReconcilePostgresDB) makeStatefulSetForPostgres(p *fakemoonv1alpha1.Pos
 							"storage": quantity,
 						},
 					},
-					StorageClassName:&p.Name,
+					StorageClassName:&p.Spec.StorageClass,
 				},
 			}},
 		},
