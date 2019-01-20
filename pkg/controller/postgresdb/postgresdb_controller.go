@@ -126,6 +126,17 @@ func (r *ReconcilePostgresDB) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
+	// Ensure the running statefulset is the same as the spec
+	if !r.checkStatefulSetSpec(found, instance) {
+		err = r.client.Update(context.TODO(), r.makeStatefulSetForPostgres(instance))
+		if err != nil {
+			reqLogger.Error(err, "Failed to update StatefulSet", "StatefulSet.Namespace", found.Namespace, "StatefulSet.Name", found.Name)
+			return reconcile.Result{}, err
+		}
+		// Spec updated - return and requeue
+		return reconcile.Result{Requeue: true}, nil
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -211,6 +222,12 @@ func (r *ReconcilePostgresDB) makeStatefulSetForPostgres(p *fakemoonv1alpha1.Pos
 	// Set Postgres instance as the owner and controller
 	controllerutil.SetControllerReference(p, stf, r.scheme)
 	return stf
+}
+
+// checkStatefulSetSpec returns true if a has the same spec as b (version, password, storage size and storage class)
+func (r *ReconcilePostgresDB) checkStatefulSetSpec(a *appsv1.StatefulSet, b *fakemoonv1alpha1.PostgresDB) bool {
+	// TODO
+	return false
 }
 
 // labelsForPostgres returns the labels for selecting the resources
