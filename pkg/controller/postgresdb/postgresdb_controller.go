@@ -2,7 +2,6 @@ package postgresdb
 
 import (
 	"context"
-	"strconv"
 	"strings"
 
 	fakemoonv1alpha1 "github.com/fakemoon/postgres-operator/pkg/apis/fakemoon/v1alpha1"
@@ -122,13 +121,16 @@ func (r *ReconcilePostgresDB) Reconcile(request reconcile.Request) (reconcile.Re
 		reqLogger.Error(err, "Failed to get Deployment")
 		return reconcile.Result{}, err
 	}
+
+	return reconcile.Result{}, nil
 }
+
 
 // makeDeploymentForPostgres returns a PostgresDB Deployment object
 func (r *ReconcilePostgresDB) makeDeploymentForPostgres(p *fakemoonv1alpha1.PostgresDB) *appsv1.Deployment {
 	ls := labelsForPostgres(p.Name)
 	version := p.Spec.PostgresVersion
-	imageName := "postgres"
+	imageName := "postgres:"
 	if checkPostgresVersion(version) {
 		imageName += version
 	} else {
@@ -136,6 +138,7 @@ func (r *ReconcilePostgresDB) makeDeploymentForPostgres(p *fakemoonv1alpha1.Post
 		log.Info("Invalid spec postgres_version. Using default = 10")
 		imageName += DEFAULT_POSTGRES_VERSION
 	}
+	var replicas int32 = 1
 
 	dep := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -147,7 +150,7 @@ func (r *ReconcilePostgresDB) makeDeploymentForPostgres(p *fakemoonv1alpha1.Post
 			Namespace: p.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: 1,
+			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
 			},
