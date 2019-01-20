@@ -183,7 +183,7 @@ func (r *ReconcilePostgresDB) makeStatefulSetForPostgres(p *fakemoonv1alpha1.Pos
 							Value:p.Spec.PostgresPassword,
 						}},
 						VolumeMounts:[]corev1.VolumeMount{{
-							Name:"postgres_data_vol",
+							Name:"postgres-data-vol",
 							MountPath:"/var/lib/postgresql/data",
 						}},
 					}},
@@ -191,7 +191,7 @@ func (r *ReconcilePostgresDB) makeStatefulSetForPostgres(p *fakemoonv1alpha1.Pos
 			},
 			VolumeClaimTemplates:[]corev1.PersistentVolumeClaim{{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:"postgres_data_vol",
+					Name:"postgres-data-vol",
 				},
 				Spec:corev1.PersistentVolumeClaimSpec{
 					AccessModes:[]corev1.PersistentVolumeAccessMode{
