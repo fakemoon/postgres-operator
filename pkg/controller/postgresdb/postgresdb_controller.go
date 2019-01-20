@@ -2,6 +2,7 @@ package postgresdb
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"strings"
 
 	fakemoonv1alpha1 "github.com/fakemoon/postgres-operator/pkg/apis/fakemoon/v1alpha1"
@@ -22,6 +23,7 @@ import (
 )
 
 const DEFAULT_POSTGRES_VERSION = "10"
+const DEFAULT_POSTGRES_STORAGE = "5Gi"
 
 var log = logf.Log.WithName("controller_postgresdb")
 
@@ -104,21 +106,23 @@ func (r *ReconcilePostgresDB) Reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Check if the deployment already exists, if not create a new one
-	found := &appsv1.Deployment{}
+	found := &appsv1.StatefulSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		// Define a new deployment
-		dep := r.makeDeploymentForPostgres(instance)
-		reqLogger.Info("Creating a new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
-		err = r.client.Create(context.TODO(), dep)
+		// dep := r.makeDeploymentForPostgres(instance)
+		// Define a new stateful set
+		stf := r.makeStatefulSetForPostgres(instance)
+		reqLogger.Info("Creating a new StatefulSet", "StatefulSet.Namespace", stf.Namespace, "StatefulSet.Name", stf.Name)
+		err = r.client.Create(context.TODO(), stf)
 		if err != nil {
-			reqLogger.Error(err, "Failed to create new Deployment", "Deployment.Namespace", dep.Namespace, "Deployment.Name", dep.Name)
+			reqLogger.Error(err, "Failed to create new StatefulSet", "StatefulSet.Namespace", stf.Namespace, "StatefulSet.Name", stf.Name)
 			return reconcile.Result{}, err
 		}
-		// Deployment created successfully - return and requeue
+		// StatefulSet created successfully - return and requeue
 		return reconcile.Result{Requeue: true}, nil
 	} else if err != nil {
-		reqLogger.Error(err, "Failed to get Deployment")
+		reqLogger.Error(err, "Failed to get StatefulSet")
 		return reconcile.Result{}, err
 	}
 
@@ -126,8 +130,8 @@ func (r *ReconcilePostgresDB) Reconcile(request reconcile.Request) (reconcile.Re
 }
 
 
-// makeDeploymentForPostgres returns a PostgresDB Deployment object
-func (r *ReconcilePostgresDB) makeDeploymentForPostgres(p *fakemoonv1alpha1.PostgresDB) *appsv1.Deployment {
+// makeStatefulSetForPostgres returns a PostgresDB StatefulSet object
+func (r *ReconcilePostgresDB) makeStatefulSetForPostgres(p *fakemoonv1alpha1.PostgresDB) *appsv1.StatefulSet {
 	ls := labelsForPostgres(p.Name)
 	version := p.Spec.PostgresVersion
 	imageName := "postgres:"
@@ -138,18 +142,25 @@ func (r *ReconcilePostgresDB) makeDeploymentForPostgres(p *fakemoonv1alpha1.Post
 		log.Info("Invalid spec postgres_version. Using default = 10")
 		imageName += DEFAULT_POSTGRES_VERSION
 	}
+	quantity, err := resource.ParseQuantity(p.Spec.Storage)
+	if err != nil {
+		//use default storage size
+		log.Info("Invalid spec storage. Using default = 5Gi")
+		quantity, _ = resource.ParseQuantity(DEFAULT_POSTGRES_STORAGE)
+	}
+	// for non-cluster postgres deploy, only 1 replica
 	var replicas int32 = 1
 
-	dep := &appsv1.Deployment{
+	stf := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
-			Kind:       "Deployment",
+			Kind:       "StatefulSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      p.Name,
 			Namespace: p.Namespace,
 		},
-		Spec: appsv1.DeploymentSpec{
+		Spec: appsv1.StatefulSetSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ls,
@@ -171,18 +182,38 @@ func (r *ReconcilePostgresDB) makeDeploymentForPostgres(p *fakemoonv1alpha1.Post
 							Name:"POSTGRES_PASSWORD",
 							Value:p.Spec.PostgresPassword,
 						}},
+						VolumeMounts:[]corev1.VolumeMount{{
+							Name:"postgres_data_vol",
+							MountPath:"/var/lib/postgresql/data",
+						}},
 					}},
 				},
 			},
+			VolumeClaimTemplates:[]corev1.PersistentVolumeClaim{{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:"postgres_data_vol",
+				},
+				Spec:corev1.PersistentVolumeClaimSpec{
+					AccessModes:[]corev1.PersistentVolumeAccessMode{
+						"ReadWriteOnce",
+					},
+					Resources:corev1.ResourceRequirements{
+						Requests:corev1.ResourceList{
+							"storage": quantity,
+						},
+					},
+					StorageClassName:&p.Name,
+				},
+			}},
 		},
 	}
-	// Set Memcached instance as the owner and controller
-	controllerutil.SetControllerReference(p, dep, r.scheme)
-	return dep
+	// Set Postgres instance as the owner and controller
+	controllerutil.SetControllerReference(p, stf, r.scheme)
+	return stf
 }
 
-// labelsForMemcached returns the labels for selecting the resources
-// belonging to the given memcached CR name.
+// labelsForPostgres returns the labels for selecting the resources
+// belonging to the given postgres CR name.
 func labelsForPostgres(name string) map[string]string {
 	return map[string]string{"app": "postgres", "postgres_cr": name}
 }

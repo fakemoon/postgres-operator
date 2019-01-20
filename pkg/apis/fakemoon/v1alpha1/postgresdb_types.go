@@ -13,6 +13,7 @@ type PostgresDBSpec struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	PostgresVersion string `json:"version"`
 	PostgresPassword string `json:"postgres_password"`
+	Storage string `json:"storage_size"`
 }
 
 // PostgresDBStatus defines the observed state of PostgresDB
